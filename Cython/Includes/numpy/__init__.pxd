@@ -237,7 +237,7 @@ cdef extern from "numpy/arrayobject.h":
 
             cdef int t
             cdef char* f = NULL
-            cdef dtype descr = self.descr
+            cdef dtype descr = <dtype>_PyArray_DESCR(self)
             cdef list stack
             cdef int offset
 
@@ -389,8 +389,9 @@ cdef extern from "numpy/arrayobject.h":
     npy_intp PyArray_DIM(ndarray, size_t)
     npy_intp PyArray_STRIDE(ndarray, size_t)
 
-    # object PyArray_BASE(ndarray) wrong refcount semantics
-    # dtype PyArray_DESCR(ndarray) wrong refcount semantics
+    PyObject *_PyArray_BASE "PyArray_BASE" (ndarray)
+    PyObject *_PyArray_DESCR "PyArray_DESCR" (ndarray)
+
     int PyArray_FLAGS(ndarray)
     npy_intp PyArray_ITEMSIZE(ndarray)
     int PyArray_TYPE(ndarray arr)
@@ -964,17 +965,18 @@ cdef extern from "numpy/ufuncobject.h":
 
 
 cdef inline void set_array_base(ndarray arr, object base):
+     # This should PyArray_SetBaseObject, but it's numpy 1.7+ only
      cdef PyObject* baseptr
      if base is None:
          baseptr = NULL
      else:
          Py_INCREF(base) # important to do this before decref below!
          baseptr = <PyObject*>base
-     Py_XDECREF(arr.base)
-     arr.base = baseptr
+     Py_XDECREF(_PyArray_BASE(arr))
+     _PyArray_BASE(arr) = baseptr
 
 cdef inline object get_array_base(ndarray arr):
-    if arr.base is NULL:
+    if _PyArray_BASE(arr) is NULL:
         return None
     else:
-        return <object>arr.base
+        return <object>_PyArray_BASE(arr.base)
